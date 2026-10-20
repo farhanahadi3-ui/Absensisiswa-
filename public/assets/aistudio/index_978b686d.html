@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi SMK FAJAR INDAH</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0f172a',
+                        cardbg: '#1e293b',
+                        bordercolor: '#334155',
+                        subtext: '#94a3b8',
+                        accentblue: '#2563eb',
+                        accenthover: '#1d4ed8'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- XLSX Library for Export with fallback error boundary -->
+    <script>
+        window.xlsxFailed = false;
+        (function loadXlsx() {
+            var script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+            script.onerror = function() { window.xlsxFailed = true; };
+            document.head.appendChild(script);
+        })();
+    </script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .face-target-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 180px;
+            border: 2px dashed #60a5fa;
+            border-radius: 20px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+        }
+        .scan-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 130px;
+            height: 2px;
+            background: #3b82f6;
+            box-shadow: 0 0 8px #3b82f6;
+            animation: scanAnim 2s infinite ease-in-out;
+        }
+        @keyframes scanAnim {
+            0% { transform: translate(-50%, -80px); }
+            50% { transform: translate(-50%, 80px); }
+            100% { transform: translate(-50%, -80px); }
+        }
+        video, canvas {
+            transform: scaleX(1) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-10 flex flex-col items-center">
+
+    <div class="w-full max-w-2xl px-4 pt-6 space-y-4">
+        
+        <!-- App Header -->
+        <header id="app-header" class="hidden bg-cardbg border border-bordercolor rounded-2xl p-4 sm:p-5 shadow-xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-sm sm:text-base font-bold text-white tracking-wide">SMK FAJAR INDAH</h1>
+                    <p class="text-[11px] sm:text-xs text-subtext">Sistem Absensi Pemindaian Wajah AI</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- Sound Toggle Button -->
+                <button id="btn-sound-toggle" onclick="toggleAudioMute()" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 p-2 rounded-xl text-xs font-semibold flex items-center justify-center transition" title="Kontrol Suara">
+                    <svg id="icon-sound-on" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                    <svg id="icon-sound-off" class="w-4 h-4 hidden text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                </button>
+                <button onclick="openScriptModal()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <span class="hidden sm:inline">Setup Google Sheets</span>
+                </button>
+                <button onclick="handleLogout()" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Toast Notification Overlay -->
+        <div id="toast" class="hidden fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg border border-emerald-400/30 text-sm font-medium transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span id="toast-message">Notifikasi</span>
+        </div>
+
+        <!-- MODAL SETUP GOOGLE APPS SCRIPT -->
+        <div id="modal-script-setup" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-cardbg border border-bordercolor rounded-2xl w-full max-w-xl p-5 space-y-4 max-h-[85vh] overflow-y-auto relative">
+                <div class="flex items-center justify-between border-b border-bordercolor pb-3">
+                    <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span>Integrasi Database Google Sheets</span>
+                    </h3>
+                    <button onclick="closeScriptModal()" class="text-subtext hover:text-white">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <div class="space-y-2 text-xs text-subtext">
+                    <p>Salin skrip Google Apps Script di bawah ini dan tempelkan ke editor Apps Script spreadsheet Anda untuk mengaktifkan integrasi data otomatis.</p>
+                </div>
+
+                <textarea id="apps-script-code" readonly class="w-full h-56 bg-darkbg border border-bordercolor rounded-xl p-3 text-[11px] font-mono text-emerald-300 focus:outline-none">
+const SPREADSHEET_ID = "1NsKn8c2vLA_YCvAaPKoQLUgdIVLpGcNI4TC4KKRolzc";
+const SISWA_HEADERS = ["ID", "Nama Siswa", "Kelas", "Foto Wajah Base64", "Tanggal Daftar"];
+const ABSENSI_HEADERS = ["ID Absensi", "ID Siswa", "Nama", "Kelas", "Tanggal", "Jam Datang", "Jam Pulang", "Status"];
+
+function spreadsheet_() { return SpreadsheetApp.openById(SPREADSHEET_ID); }
+function sheet_(ss, name, headers) {
+  var sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function dateText_(v) {
+  if (v instanceof Date && !isNaN(v.getTime())) return Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  var s = String(v == null ? "" : v).trim();
+  var iso = s.match(/^(\d{4}-\d{2}-\d{2})/); if (iso) return iso[1];
+  var d = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (d) return d[3] + "-" + ("0" + d[2]).slice(-2) + "-" + ("0" + d[1]).slice(-2);
+  return s;
+}
+function timeText_(v) {
+  if (v === "" || v == null || v === "-") return "-";
+  if (v instanceof Date && !isNaN(v.getTime())) return Utilities.formatDate(v, Session.getScriptTimeZone(), "HH:mm");
+  if (typeof v === "number" && v >= 0 && v < 1) {
+    var mins = Math.round(v * 1440);
+    return ("0" + (Math.floor(mins / 60) % 24)).slice(-2) + ":" + ("0" + (mins % 60)).slice(-2);
+  }
+  return String(v).replace(/^'/, "").trim() || "-";
+}
+function output_(data, e) {
+  var cb = e && e.parameter ? String(e.parameter.callback || "") : "";
+  if (cb) {
+    if (!/^[A-Za-z_$][0-9A-Za-z_$]{0,80}$/.test(cb)) {
+      return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Callback tidak valid"})).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(cb + "(" + JSON.stringify(data) + ");").setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+function doGet(e) {
+  try {
+    var ss = spreadsheet_();
+    var siswa = sheet_(ss, "Data_Siswa", SISWA_HEADERS);
+    var absensi = sheet_(ss, "Data_Absensi", ABSENSI_HEADERS);
+    var siswaValues = siswa.getLastRow() > 1 ? siswa.getRange(2, 1, siswa.getLastRow()-1, 5).getValues() : [];
+    var absensiValues = absensi.getLastRow() > 1 ? absensi.getRange(2, 1, absensi.getLastRow()-1, 8).getValues() : [];
+    var siswaData = siswaValues.filter(function(r){ return String(r[0] || "").trim() !== ""; }).map(function(r){
+      return {id:String(r[0] || "").trim(), nama:String(r[1] || "").trim(), kelas:String(r[2] || "").trim(), fotoWajah:String(r[3] || ""), createdAt:r[4] instanceof Date ? r[4].toISOString() : String(r[4] || "")};
+    });
+    var absensiData = absensiValues.filter(function(r){ return String(r[0] || r[1] || "").trim() !== ""; }).map(function(r){
+      return {id:String(r[0] || "").trim(), siswaId:String(r[1] || "").trim(), nama:String(r[2] || "").trim(), kelas:String(r[3] || "").trim(), tanggal:dateText_(r[4]), jamDatang:timeText_(r[5]), jamPulang:timeText_(r[6]), status:String(r[7] || "Hadir").trim()};
+    });
+    return output_({status:"success", message:"Koneksi Google Sheets berhasil", siswaData:siswaData, absensiData:absensiData, totalSiswa:siswaData.length, totalAbsensi:absensiData.length, today:Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd")}, e);
+  } catch (err) { return output_({status:"error", message:String(err)}, e); }
+}
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+    if (!e || !e.postData || !e.postData.contents) throw new Error("Data kiriman kosong.");
+    var data = JSON.parse(e.postData.contents);
+    var ss = spreadsheet_();
+    if (data.type === "siswa") {
+      if (!data.id || !String(data.nama || "").trim() || !String(data.kelas || "").trim()) throw new Error("ID, nama, dan kelas siswa wajib diisi.");
+      var sh = sheet_(ss, "Data_Siswa", SISWA_HEADERS);
+      var photo = String(data.fotoWajah || "");
+      if (photo.length > 49000) throw new Error("Foto terlalu besar untuk satu sel Google Sheets.");
+      var last = sh.getLastRow(), rowNum = 0;
+      if (last > 1) {
+        var ids = sh.getRange(2,1,last-1,1).getDisplayValues();
+        for (var i=0;i<ids.length;i++) if (String(ids[i][0]).trim() === String(data.id).trim()) { rowNum=i+2; break; }
+      }
+      var old = rowNum ? sh.getRange(rowNum,1,1,5).getValues()[0] : [];
+      var row = [String(data.id), String(data.nama).trim(), String(data.kelas).trim(), photo || old[3] || "", data.createdAt || old[4] || new Date()];
+      if (rowNum) sh.getRange(rowNum,1,1,5).setValues([row]); else sh.appendRow(row);
+      return output_({status:"success", message:"Data siswa berhasil disimpan", id:String(data.id)}, null);
+    }
+    if (data.type === "absensi") {
+      if (!data.siswaId || !data.tanggal) throw new Error("ID siswa dan tanggal absensi wajib diisi.");
+      var as = sheet_(ss, "Data_Absensi", ABSENSI_HEADERS);
+      var targetDate = dateText_(data.tanggal), lastA=as.getLastRow(), target=0, oldA=[];
+      if (lastA > 1) {
+        var rows=as.getRange(2,1,lastA-1,8).getValues();
+        for (var j=0;j<rows.length;j++) if (String(rows[j][1] || "").trim()===String(data.siswaId).trim() && dateText_(rows[j][4])===targetDate) { target=j+2; oldA=rows[j]; break; }
+      }
+      var datang = (data.jamDatang && data.jamDatang !== "-") ? data.jamDatang : (oldA[5] || "-");
+      var pulang = (data.jamPulang && data.jamPulang !== "-") ? data.jamPulang : (oldA[6] || "-");
+      var rowA=[data.id || oldA[0] || ("ABS-"+Date.now()), String(data.siswaId), data.nama || oldA[2] || "", data.kelas || oldA[3] || "", targetDate, datang, pulang, data.status || oldA[7] || "Hadir"];
+      if (target) as.getRange(target,1,1,8).setValues([rowA]); else as.appendRow(rowA);
+      return output_({status:"success", message:"Data absensi berhasil disimpan", id:String(rowA[0])}, null);
+    }
+    throw new Error("Jenis data tidak dikenal.");
+  } catch (err) { return output_({status:"error", message:String(err)}, null); }
+  finally { if (lock.hasLock()) lock.releaseLock(); }
+}
+</textarea>
+
+                <div class="pt-2 border-t border-bordercolor flex justify-end">
+                    <button onclick="closeScriptModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Edit Siswa -->
+        <div id="modal-edit-siswa" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-cardbg border border-bordercolor rounded-2xl w-full max-w-md p-5 space-y-4 relative">
+                <div class="flex items-center justify-between border-b border-bordercolor pb-3">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <svg class="w-4 h-4 text-accentblue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        <span>Edit Data & Foto Siswa</span>
+                    </h3>
+                    <button onclick="closeEditModal()" class="text-subtext hover:text-white">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <input type="hidden" id="edit-siswa-id">
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-subtext mb-1">Nama Siswa</label>
+                        <input type="text" id="edit-nama" class="w-full bg-darkbg border border-bordercolor rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-accentblue">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-subtext mb-1">Kelas</label>
+                        <input type="text" id="edit-kelas" class="w-full bg-darkbg border border-bordercolor rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-accentblue">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-subtext mb-1">Update Foto Wajah (Opsional)</label>
+                        <div class="bg-darkbg p-3 rounded-xl border border-bordercolor text-center">
+                            <img id="edit-foto-preview" class="w-24 h-24 object-cover mx-auto rounded-lg border border-bordercolor mb-2" alt="Foto Siswa">
+                            <video id="webcam-edit" class="hidden w-full max-w-[200px] mx-auto rounded-lg border border-bordercolor object-cover h-32 bg-black mb-2 scale-x-100" autoplay playsinline muted></video>
+                            
+                            <div class="flex items-center justify-center gap-2">
+                                <button type="button" onclick="toggleWebcamEdit()" class="bg-blue-600/80 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                                    <span id="btn-text-webcam-edit">Ambil Foto Baru</span>
+                                </button>
+                                <button type="button" id="btn-capture-edit" onclick="captureEditFoto()" class="hidden bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">
+                                    Jepret
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-bordercolor">
+                    <button onclick="closeEditModal()" class="px-4 py-2 rounded-xl text-xs font-medium bg-slate-800 text-subtext hover:text-white">Batal</button>
+                    <button onclick="simpanEditSiswa()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-accentblue hover:bg-accenthover text-white flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                        <span>Simpan Perubahan</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <nav id="main-tab-nav" class="hidden bg-cardbg p-1.5 rounded-2xl border border-bordercolor flex items-center gap-1">
+            <button id="tab-btn-pendaftaran" onclick="switchTab('pendaftaran')" class="tab-btn flex-1 py-2 rounded-xl text-xs font-semibold text-subtext transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                <span>Pendaftaran</span>
+            </button>
+            <button id="tab-btn-absensi" onclick="switchTab('absensi')" class="tab-btn flex-1 py-2 rounded-xl text-xs font-semibold bg-accentblue text-white transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                <span>Absensi</span>
+            </button>
+            <button id="tab-btn-rekap" onclick="switchTab('rekap')" class="tab-btn flex-1 py-2 rounded-xl text-xs font-semibold text-subtext transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Rekap Bulanan</span>
+            </button>
+        </nav>
+
+        <!-- Login Screen -->
+        <section id="login-screen" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div class="text-center space-y-2">
+                <div class="w-14 h-14 bg-blue-100 text-blue-600 border border-blue-200 rounded-2xl mx-auto flex items-center justify-center">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </div>
+                <h2 class="text-xl font-black text-gray-800 tracking-wide uppercase">ABSENSI MURID</h2>
+                <p class="text-xs font-semibold text-blue-600 tracking-wider uppercase">SMK FAJAR INDAH</p>
+                <p class="text-[11px] text-gray-500">Login awal: <b>admin</b> / <b>demikamu</b></p>
+            </div>
+
+            <form id="login-form" onsubmit="window.handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Username Admin</label>
+                    <input type="text" id="login-username" value="admin" required class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
+                    <input type="password" id="login-password" value="demikamu" required class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs sm:text-sm font-semibold transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                    <span>Masuk ke Sistem</span>
+                </button>
+                <p id="login-error" class="text-xs text-red-500 font-medium mt-1" role="alert"></p>
+            </form>
+        </section>
+
+        <!-- Menu Pendaftaran Siswa -->
+        <section id="menu-pendaftaran" class="tab-content space-y-5 hidden bg-cardbg border border-bordercolor rounded-2xl p-5 shadow-xl">
+            <div class="border-b border-bordercolor pb-3 flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-accentblue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                        <span>Registrasi Data Siswa &amp; Wajah Baru</span>
+                    </h2>
+                    <p class="text-xs text-subtext mt-1">Daftarkan siswa baru beserta sampel foto wajah untuk verifikasi AI &amp; Sync Google Sheet.</p>
+                </div>
+                <button onclick="openScriptModal()" class="hidden sm:flex bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    <span>Dapatkan Apps Script</span>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-subtext mb-1.5">Nama Lengkap Siswa</label>
+                    <input type="text" id="reg-nama" placeholder="Contoh: Angel Lee Majesty" class="w-full bg-darkbg border border-bordercolor rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-accentblue">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-subtext mb-1.5">Kelas / Jurusan</label>
+                    <input type="text" id="reg-kelas" placeholder="Contoh: X AKL" class="w-full bg-darkbg border border-bordercolor rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-accentblue">
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-medium text-subtext">URL Web App Google Apps Script</label>
+                        <button type="button" onclick="openScriptModal()" class="text-[11px] text-emerald-400 hover:underline">Cara Buat Spreadsheet Database?</button>
+                    </div>
+                    <p class="text-[11px] text-subtext mb-2">Spreadsheet tujuan sudah ditetapkan pada kode Apps Script. Setelah deploy sebagai Web App, tempel URL /exec di kolom ini.</p>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="google-sheet-url" placeholder="Tempel URL Web App Apps Script yang berakhir /exec" class="flex-1 bg-darkbg border border-bordercolor rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-accentblue">
+                        <button type="button" onclick="pullDataFromSpreadsheet()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            <span>Tarik Data</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-subtext mb-1.5">Ambil Sampel Foto Wajah</label>
+                    <div class="bg-darkbg border border-bordercolor rounded-xl p-4 text-center flex flex-col items-center justify-center">
+                        <video id="webcam-reg" class="hidden w-full max-w-xs rounded-lg border border-bordercolor object-cover h-48 bg-black mb-3 scale-x-100" autoplay playsinline muted></video>
+                        <canvas id="canvas-preview-reg" class="hidden w-full max-w-xs rounded-lg border border-bordercolor object-cover h-48 bg-black mb-3 scale-x-100"></canvas>
+                        
+                        <div id="camera-placeholder-reg" class="py-6">
+                            <svg class="w-12 h-12 text-subtext/60 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                            <p class="text-xs text-subtext">Nyalakan kamera untuk mengambil foto wajah siswa</p>
+                        </div>
+
+                        <div class="flex items-center gap-2 mt-2 w-full max-w-xs">
+                            <button type="button" onclick="toggleWebcam('reg')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-xl text-xs font-medium border border-bordercolor flex items-center justify-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                <span id="btn-cam-text-reg">Nyalakan Kamera</span>
+                            </button>
+                            <button type="button" id="btn-capture-reg" onclick="captureFotoReg()" class="hidden flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                                <span>Tangkap Foto</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" onclick="simpanSiswa()" class="w-full bg-accentblue hover:bg-accenthover text-white py-3 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-blue-600/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    <span>Simpan Siswa ke Database Google Sheets</span>
+                </button>
+            </div>
+
+            <!-- Daftar Siswa Terdaftar -->
+            <div class="pt-4 border-t border-bordercolor">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-accentblue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        <h2 class="text-xs sm:text-sm font-semibold text-gray-200">Daftar Siswa &amp; Foto Terdaftar</h2>
+                    </div>
+                    <span id="badge-count" class="bg-blue-900/60 text-blue-300 text-xs font-bold px-3 py-1 rounded-full border border-blue-700/50">0</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <button onclick="backupJSON()" class="bg-slate-700/60 hover:bg-slate-700 border border-slate-600/60 text-gray-200 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span>Backup JSON</span>
+                    </button>
+                    <label class="bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/50 text-amber-300 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span>Restore JSON</span>
+                        <input type="file" id="input-restore" accept=".json" onchange="restoreJSON(event)" class="hidden">
+                    </label>
+                </div>
+
+                <div class="mb-3">
+                    <select id="filter-kelas-siswa" onchange="renderSiswaList()" class="w-full bg-darkbg border border-bordercolor rounded-xl px-4 py-2.5 text-xs sm:text-sm text-subtext focus:outline-none focus:border-accentblue">
+                        <option value="">Semua Kelas</option>
+                    </select>
+                </div>
+
+                <div id="siswa-list" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+            </div>
+        </section>
+
+        <!-- Menu Absensi Scan Wajah & Tabel Status Hari Ini -->
+        <section id="menu-absensi" class="tab-content space-y-5 hidden">
+            <div class="flex items-center justify-between bg-darkbg p-2.5 rounded-xl border border-bordercolor flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-subtext font-medium pl-1">Metode:</span>
+                    <div class="flex items-center gap-1 bg-cardbg p-1 rounded-lg border border-bordercolor/80">
+                        <button id="btn-mode-ai" onclick="switchAbsenMode('ai')" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-accentblue text-white transition flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Scan AI
+                        </button>
+                        <button id="btn-mode-manual" onclick="switchAbsenMode('manual')" class="px-2.5 py-1 rounded-md text-xs font-semibold text-subtext hover:text-white transition flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg> Manual
+                        </button>
+                    </div>
+                </div>
+                <button type="button" onclick="pullDataFromSpreadsheet()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span>Sync Spreadsheet</span>
+                </button>
+            </div>
+
+            <!-- CAMERA SCANNER BOX WITH FACIAL RECOGNITION -->
+            <div id="absen-box-ai" class="bg-darkbg/80 border border-bordercolor rounded-xl p-4 text-center flex flex-col items-center justify-center min-h-[260px] relative overflow-hidden">
+                <div id="scanner-wrapper" class="relative hidden w-full max-w-sm rounded-lg border border-bordercolor overflow-hidden bg-black mb-3">
+                    <video id="webcam-absen" class="w-full object-cover h-64 scale-x-100" autoplay playsinline muted></video>
+                    <canvas id="canvas-absen-ai" class="hidden"></canvas>
+
+                    <div id="face-overlay" class="absolute inset-0 pointer-events-none">
+                        <div id="target-box-element" class="face-target-box transition-colors duration-300"></div>
+                        <div class="scan-line"></div>
+                        <div class="absolute top-3 left-3 right-3 flex items-center justify-between">
+                            <div class="bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] text-blue-400 font-mono border border-blue-500/30 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+                                <span>AI RECOGNITION ENGINE</span>
+                            </div>
+                            <div id="ai-match-badge" class="hidden bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 px-2.5 py-1 rounded-md text-[10px] font-semibold flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <span id="ai-match-name">Mengenali...</span>
+                            </div>
+                        </div>
+
+                        <div id="ai-status-bar" class="absolute bottom-2 left-2 right-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-[11px] text-subtext border border-bordercolor flex items-center justify-between">
+                            <span id="ai-status-text" class="text-blue-300 font-medium">Mengarahkan kamera ke wajah...</span>
+                            <span id="ai-confidence-text" class="font-mono text-[10px] text-subtext">Match: 0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="camera-placeholder-absen" class="flex flex-col items-center justify-center py-6">
+                    <svg class="w-14 h-14 text-subtext/70 mb-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <p class="text-xs sm:text-sm text-subtext max-w-sm">Nyalakan kamera untuk pemindaian wajah otomatis. Sistem AI akan mencocokkan wajah depan kamera dengan foto terdaftar secara presisi.</p>
+                </div>
+
+                <button id="btn-toggle-cam-absen" onclick="toggleWebcam('absen')" class="w-full max-w-sm bg-accentblue hover:bg-accenthover text-white py-2.5 px-4 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition shadow-lg">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <span id="btn-cam-text-absen">Nyalakan Pemindai Wajah</span>
+                </button>
+            </div>
+
+            <!-- MANUAL SELECT DROP DOWN -->
+            <div id="absen-box-manual" class="hidden bg-darkbg/80 border border-bordercolor rounded-xl p-4 sm:p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-subtext mb-1.5">Filter Berdasarkan Kelas</label>
+                    <select id="select-absen-kelas" onchange="populateSelectSiswaAbsen()" class="w-full bg-cardbg border border-bordercolor rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-accentblue">
+                        <option value="">Semua Kelas</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-subtext mb-1.5">Pilih Nama Siswa</label>
+                    <select id="select-absen-siswa" class="w-full bg-cardbg border border-bordercolor rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-accentblue">
+                        <option value="">-- Pilih Nama Siswa --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button id="btn-absen-datang" onclick="prosesAbsensi('Datang')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-900/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                    <span>Absen Datang</span>
+                </button>
+                <button id="btn-absen-pulang" onclick="prosesAbsensi('Pulang')" class="bg-rose-600 hover:bg-rose-700 text-white py-3.5 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-rose-900/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    <span>Absen Pulang</span>
+                </button>
+            </div>
+
+            <!-- TABEL STATUS KEHADIRAN HARI INI -->
+            <div class="bg-darkbg/90 border border-bordercolor/80 rounded-xl p-4 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-bordercolor/60 pb-3">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h2 class="text-xs sm:text-sm font-bold text-white">Tabel Status Kehadiran Hari Ini</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="filter-today-kelas" onchange="renderTodayStatusTable()" class="bg-cardbg border border-bordercolor rounded-lg px-2.5 py-1 text-xs text-subtext focus:outline-none">
+                            <option value="">Semua Kelas</option>
+                        </select>
+                        <button onclick="pullDataFromSpreadsheet()" class="bg-blue-600/80 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Sync Spreadsheet
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 text-[11px] text-subtext flex-wrap bg-cardbg/60 p-2 rounded-lg border border-bordercolor/40">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Sudah Absen</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Belum Absen</span>
+                </div>
+
+                <!-- Table Content -->
+                <div class="overflow-x-auto rounded-lg border border-bordercolor/60 bg-darkbg max-h-72 overflow-y-auto">
+                    <table class="w-full text-left border-collapse text-[11px] sm:text-xs">
+                        <thead>
+                            <tr class="bg-cardbg text-subtext border-b border-bordercolor/80 sticky top-0 z-10">
+                                <th class="p-2 border-r border-bordercolor/40 text-center w-10">No</th>
+                                <th class="p-2 border-r border-bordercolor/40 min-w-[130px]">Nama Siswa</th>
+                                <th class="p-2 border-r border-bordercolor/40 min-w-[70px]">Kelas</th>
+                                <th class="p-2 border-r border-bordercolor/40 text-center min-w-[80px]">Indikator</th>
+                                <th class="p-2 border-r border-bordercolor/40 text-center min-w-[70px]">Jam Datang</th>
+                                <th class="p-2 border-r border-bordercolor/40 text-center min-w-[70px]">Jam Pulang</th>
+                                <th class="p-2 text-center min-w-[170px]">Atur Status Kehadiran</th>
+                            </tr>
+                        </thead>
+                        <tbody id="today-status-tbody" class="divide-y divide-bordercolor/40 text-gray-200"></tbody>
+                    </table>
+                </div>
+
+                <!-- Ringkasan Statistik Kartu -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    <div class="bg-cardbg p-2.5 rounded-xl border border-emerald-500/30 text-center">
+                        <span class="block text-[10px] font-semibold text-subtext uppercase tracking-wider">TOTAL DATANG</span>
+                        <span id="stat-total-datang" class="text-base font-bold text-emerald-400">0</span>
+                    </div>
+                    <div class="bg-cardbg p-2.5 rounded-xl border border-amber-500/30 text-center">
+                        <span class="block text-[10px] font-semibold text-subtext uppercase tracking-wider">TOTAL SAKIT (S)</span>
+                        <span id="stat-total-sakit" class="text-base font-bold text-amber-400">0</span>
+                    </div>
+                    <div class="bg-cardbg p-2.5 rounded-xl border border-blue-500/30 text-center">
+                        <span class="block text-[10px] font-semibold text-subtext uppercase tracking-wider">TOTAL IZIN (I)</span>
+                        <span id="stat-total-izin" class="text-base font-bold text-blue-400">0</span>
+                    </div>
+                    <div class="bg-cardbg p-2.5 rounded-xl border border-rose-500/30 text-center">
+                        <span class="block text-[10px] font-semibold text-subtext uppercase tracking-wider">TOTAL ALPA (A)</span>
+                        <span id="stat-total-alpa" class="text-base font-bold text-rose-400">0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Menu Rekap Bulanan -->
+        <section id="menu-rekap" class="tab-content space-y-4 hidden">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-darkbg p-3.5 rounded-xl border border-bordercolor">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-accentblue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <h2 class="text-sm font-semibold text-white">Rekapitulasi Kehadiran Bulanan</h2>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <select id="filter-rekap-kelas" onchange="renderRekapList()" class="bg-cardbg border border-bordercolor rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none">
+                        <option value="">Semua Kelas</option>
+                    </select>
+                    <input type="month" id="filter-rekap-bulan" onchange="renderRekapList()" class="bg-cardbg border border-bordercolor rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none">
+                    <button onclick="exportExcelMatrix()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Export Excel
+                    </button>
+                </div>
+            </div>
+
+            <div id="rekap-container" class="space-y-3">
+                <div class="text-center py-6 text-xs text-subtext">Memuat data rekapitulasi...</div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Application Script Implementation -->
+    <script>
+        // Suppress generic cross-origin "Script error." popups caused by iframe restrictions & CDN fallbacks
+        window.onerror = function(msg, url, line, col, error) {
+            if (msg === 'Script error.' || msg === 'Script error' || !msg) {
+                return true; // Prevents window script error modal propagation
+            }
+            return false;
+        };
+
+        window.addEventListener('error', function(e) {
+            if (e && (e.message === 'Script error.' || e.message === 'Script error')) {
+                if (typeof e.preventDefault === 'function') e.preventDefault();
+                if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                return true;
+            }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e && e.reason && (e.reason.message === 'Script error.' || String(e.reason).includes('Script error'))) {
+                if (typeof e.preventDefault === 'function') e.preventDefault();
+            }
+        });
+
+        window.siswaData = window.siswaData || [];
+        window.absensiData = window.absensiData || [];
+        window.isAudioMuted = false;
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const msg = document.getElementById('toast-message');
+            if (toast && msg) {
+                msg.textContent = message;
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 3000);
+            }
+        }
+
+        // SISTEM SUARA DITINGKATKAN: AUDIO SYNTHESIZER & SPEECH SYNTHESIS (VOICE)
+        function toggleAudioMute() {
+            window.isAudioMuted = !window.isAudioMuted;
+            const iconOn = document.getElementById('icon-sound-on');
+            const iconOff = document.getElementById('icon-sound-off');
+            
+            if (window.isAudioMuted) {
+                if (iconOn) iconOn.classList.add('hidden');
+                if (iconOff) iconOff.classList.remove('hidden');
+                showToast("Suara dinonaktifkan.");
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            } else {
+                if (iconOn) iconOn.classList.remove('hidden');
+                if (iconOff) iconOff.classList.add('hidden');
+                showToast("Suara diaktifkan.");
+                playBeep(880, 1046.50);
+                speakText("Suara aktif");
+            }
+        }
+
+        function speakText(text) {
+            if (window.isAudioMuted || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel(); // Hentikan antrean suara sebelumnya
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                
+                // Pilih suara Bahasa Indonesia jika tersedia
+                const voices = window.speechSynthesis.getVoices();
+                const idVoice = voices.find(v => v.lang.includes('id') || v.lang.includes('ID'));
+                if (idVoice) utterance.voice = idVoice;
+
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {}
+        }
+
+        function playBeep(freq1, freq2) {
+            if (window.isAudioMuted) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                
+                osc.frequency.setValueAtTime(freq1, ctx.currentTime);
+                if (freq2) {
+                    osc.frequency.setValueAtTime(freq2, ctx.currentTime + 0.1);
+                }
+
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
+            } catch (e) {}
+        }
+
+        function playDatangSound(namaSiswa = '') {
+            // Suara tone ceria
+            playBeep(587.33, 880.00); 
+            // Suara narasi manusia
+            if (namaSiswa) {
+                setTimeout(() => speakText(`${namaSiswa}, Absen datang berhasil.`), 350);
+            } else {
+                setTimeout(() => speakText(`Absen datang berhasil.`), 350);
+            }
+        }
+
+        function playPulangSound(namaSiswa = '') {
+            // Suara tone penutup
+            playBeep(880.00, 587.33);
+            // Suara narasi manusia
+            if (namaSiswa) {
+                setTimeout(() => speakText(`${namaSiswa}, Absen pulang berhasil. Hati-hati di jalan.`), 350);
+            } else {
+                setTimeout(() => speakText(`Absen pulang berhasil.`), 350);
+            }
+        }
+
+        function playRegSound(namaSiswa = '') {
+            playBeep(523.25, 659.25);
+            if (namaSiswa) {
+                setTimeout(() => speakText(`Pendaftaran ${namaSiswa} berhasil disimpan.`), 350);
+            } else {
+                setTimeout(() => speakText(`Pendaftaran siswa baru berhasil.`), 350);
+            }
+        }
+
+        function checkSession() {
+            let isLoggedIn = false;
+            try {
+                isLoggedIn = localStorage.getItem('isLoggedIn') === 'true' || sessionStorage.getItem('isLoggedIn') === 'true';
+            } catch (e) {}
+
+            const loginScreen = document.getElementById('login-screen');
+            const appHeader = document.getElementById('app-header');
+            const mainTabNav = document.getElementById('main-tab-nav');
+
+            if (isLoggedIn) {
+                if (loginScreen) loginScreen.classList.add('hidden');
+                if (appHeader) appHeader.classList.remove('hidden');
+                if (mainTabNav) mainTabNav.classList.remove('hidden');
+                switchTab('absensi');
+            } else {
+                if (loginScreen) loginScreen.classList.remove('hidden');
+                if (appHeader) appHeader.classList.add('hidden');
+                if (mainTabNav) mainTabNav.classList.add('hidden');
+                document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            }
+        }
+
+        function handleLogout() {
+            try {
+                localStorage.removeItem('isLoggedIn');
+                sessionStorage.removeItem('isLoggedIn');
+            } catch (e) {}
+            checkSession();
+            showToast("Berhasil keluar.");
+            speakText("Anda telah keluar.");
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-accentblue', 'text-white');
+                btn.classList.add('text-subtext');
+            });
+
+            const targetSection = document.getElementById(`menu-${tabName}`);
+            const targetBtn = document.getElementById(`tab-btn-${tabName}`);
+
+            if (targetSection) targetSection.classList.remove('hidden');
+            if (targetBtn) {
+                targetBtn.classList.add('bg-accentblue', 'text-white');
+                targetBtn.classList.remove('text-subtext');
+            }
+        }
+
+        function openScriptModal() {
+            document.getElementById('modal-script-setup')?.classList.remove('hidden');
+        }
+
+        function closeScriptModal() {
+            document.getElementById('modal-script-setup')?.classList.add('hidden');
+        }
+
+        function normalizeString(str) {
+            return String(str || '').toLowerCase().trim();
+        }
+
+        function normalizeDateString(dateVal) {
+            if (!dateVal) return '';
+            return String(dateVal).split('T')[0].split(' ')[0].trim();
+        }
+
+        function exportExcelMatrix() {
+            if (typeof XLSX === 'undefined' || window.xlsxFailed) {
+                showToast("Library Excel tidak tersedia.");
+                return;
+            }
+
+            const selectedKelas = document.getElementById('filter-rekap-kelas')?.value || '';
+            const selectedMonth = document.getElementById('filter-rekap-bulan')?.value || 'All';
+
+            let listSiswa = window.siswaData;
+            if (selectedKelas) listSiswa = listSiswa.filter(s => s.kelas === selectedKelas);
+
+            const dataRows = listSiswa.map((s, idx) => {
+                const logs = window.absensiData.filter(a => {
+                    const matchSiswa = (a.siswaId && String(a.siswaId) === String(s.id)) ||
+                                       (a.nama && normalizeString(a.nama) === normalizeString(s.nama));
+                    const matchMonth = selectedMonth === 'All' || normalizeDateString(a.tanggal).startsWith(selectedMonth);
+                    return matchSiswa && matchMonth;
+                });
+
+                let h = 0, sakit = 0, izin = 0, alpa = 0;
+                logs.forEach(l => {
+                    const st = String(l.status || '').trim();
+                    if (st === 'Datang' || st === 'Hadir' || st === 'Pulang' || st === 'H') h++;
+                    else if (st === 'Sakit' || st === 'S') sakit++;
+                    else if (st === 'Izin' || st === 'I') izin++;
+                    else if (st === 'Alpa' || st === 'A') alpa++;
+                });
+
+                return {
+                    "No": idx + 1,
+                    "Nama Siswa": s.nama,
+                    "Kelas": s.kelas,
+                    "Hadir": h,
+                    "Sakit": sakit,
+                    "Izin": izin,
+                    "Alpa": alpa
+                };
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(dataRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Absensi");
+            XLSX.writeFile(workbook, `Rekap_Absensi_SMK_Fajar_Indah_${selectedMonth}.xlsx`);
+            showToast("Export data Excel berhasil!");
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSession();
+
+            // Memuat daftar suara browser
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.onvoiceschanged = () => {
+                    window.speechSynthesis.getVoices();
+                };
+            }
+
+            try {
+                const savedUrl = localStorage.getItem('saved_sheet_url');
+                const sheetUrlInput = document.getElementById('google-sheet-url');
+                if (savedUrl && sheetUrlInput) {
+                    sheetUrlInput.value = savedUrl;
+                }
+            } catch(e){}
+
+            setInterval(() => {
+                try {
+                    const logged = localStorage.getItem('isLoggedIn') === 'true' || sessionStorage.getItem('isLoggedIn') === 'true';
+                    const sheetUrl = (document.getElementById('google-sheet-url')?.value || localStorage.getItem('saved_sheet_url') || '').trim();
+                    if (logged && sheetUrl && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(sheetUrl) && typeof window.pullDataFromSpreadsheet === 'function') {
+                        window.pullDataFromSpreadsheet(true);
+                    }
+                } catch(e){}
+            }, 60000);
+        });
+    </script>
+
+<script>
+/* INTEGRASI GOOGLE SHEETS, AI FACE MATCHING & SAFE JSONP LOADER - SMK FAJAR INDAH */
+(function(){
+  let fotoReg = '';
+  let fotoEdit = '';
+  let activeStreamReg = null, activeStreamEdit = null, activeStreamAbsen = null;
+  let aiRecognitionInterval = null;
+  let lastAutoAbsenTime = 0;
+  let studentDescriptorsCache = [];
+
+  const $ = id => document.getElementById(id);
+  const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const timeNow = () => new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',hour12:false});
+  function getSheetUrl(){ return ($('google-sheet-url')?.value || localStorage.getItem('saved_sheet_url') || '').trim(); }
+  function refreshViews(){ renderSiswaList(); populateSelectSiswaAbsen(); renderTodayStatusTable(); renderRekapList(); updateClassFilters(); cacheAllStudentFaceDescriptors(); }
+  
+  function updateClassFilters(){
+    const classes=[...new Set((window.siswaData||[]).map(s=>s.kelas).filter(Boolean))].sort();
+    ['filter-kelas-siswa','select-absen-kelas','filter-today-kelas','filter-rekap-kelas'].forEach(id=>{
+      const el=$(id); if(!el)return; const val=el.value; const first=el.options[0]?.outerHTML || '<option value="">Semua Kelas</option>';
+      el.innerHTML=first+classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); if(classes.includes(val))el.value=val;
+    });
+  }
+  
+  function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  /* ALGORITMA PENGESTRAKAN FITUR TAMPILAN WAJAH UNTUK REKOGNISI REALTIME */
+  function extractFaceDescriptor(imageOrCanvas) {
+    return new Promise((resolve) => {
+      try {
+        const tempCanvas = document.createElement('canvas');
+        const ctx = tempCanvas.getContext('2d');
+        const size = 64;
+        tempCanvas.width = size;
+        tempCanvas.height = size;
+
+        const processImg = (imgEl) => {
+          ctx.drawImage(imgEl, 0, 0, size, size);
+          const imgData = ctx.getImageData(0, 0, size, size).data;
+          const descriptor = new Float32Array(size * size);
+          let totalLuminance = 0;
+
+          for (let i = 0; i < imgData.length; i += 4) {
+            const r = imgData[i], g = imgData[i+1], b = imgData[i+2];
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            descriptor[i / 4] = lum;
+            totalLuminance += lum;
+          }
+
+          const avgLum = totalLuminance / (size * size);
+          let varianceSum = 0;
+
+          for (let i = 0; i < descriptor.length; i++) {
+            descriptor[i] = descriptor[i] - avgLum;
+            varianceSum += descriptor[i] * descriptor[i];
+          }
+
+          const stdDev = Math.sqrt(varianceSum) || 1;
+          for (let i = 0; i < descriptor.length; i++) {
+            descriptor[i] /= stdDev;
+          }
+
+          return descriptor;
+        };
+
+        if (imageOrCanvas instanceof HTMLCanvasElement || imageOrCanvas instanceof HTMLVideoElement) {
+          resolve(processImg(imageOrCanvas));
+        } else if (typeof imageOrCanvas === 'string' && imageOrCanvas.startsWith('data:image')) {
+          const img = new Image();
+          img.onload = () => resolve(processImg(img));
+          img.onerror = () => resolve(null);
+          img.src = imageOrCanvas;
+        } else {
+          resolve(null);
+        }
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  function compareFaceDescriptors(descA, descB) {
+    if (!descA || !descB || descA.length !== descB.length) return 0;
+    let dotProduct = 0;
+    for (let i = 0; i < descA.length; i++) {
+      dotProduct += descA[i] * descB[i];
+    }
+    const similarity = dotProduct / descA.length;
+    return Math.max(0, Math.min(100, Math.round((similarity + 0.2) * 110)));
+  }
+
+  async function cacheAllStudentFaceDescriptors() {
+    studentDescriptorsCache = [];
+    const students = window.siswaData || [];
+    for (const student of students) {
+      if (student.fotoWajah) {
+        const desc = await extractFaceDescriptor(student.fotoWajah);
+        if (desc) {
+          studentDescriptorsCache.push({ student, descriptor: desc });
+        }
+      }
+    }
+  }
+
+  function startAIRecognitionLoop() {
+    if (aiRecognitionInterval) clearInterval(aiRecognitionInterval);
+
+    const video = $('webcam-absen');
+    const canvas = $('canvas-absen-ai');
+    if (!video || !canvas) return;
+
+    aiRecognitionInterval = setInterval(async () => {
+      if (!activeStreamAbsen || video.paused || video.ended || !video.videoWidth) return;
+
+      canvas.width = 120;
+      canvas.height = 120;
+      const ctx = canvas.getContext('2d');
+      
+      const srcW = video.videoWidth;
+      const srcH = video.videoHeight;
+      const cropDim = Math.min(srcW, srcH) * 0.6;
+      const startX = (srcW - cropDim) / 2;
+      const startY = (srcH - cropDim) / 2;
+
+      ctx.drawImage(video, startX, startY, cropDim, cropDim, 0, 0, 120, 120);
+
+      const currentDescriptor = await extractFaceDescriptor(canvas);
+      if (!currentDescriptor) return;
+
+      let bestMatch = null;
+      let highestScore = 0;
+
+      for (const item of studentDescriptorsCache) {
+        const score = compareFaceDescriptors(currentDescriptor, item.descriptor);
+        if (score > highestScore) {
+          highestScore = score;
+          bestMatch = item.student;
+        }
+      }
+
+      const confText = $('ai-confidence-text');
+      const statusText = $('ai-status-text');
+      const badge = $('ai-match-badge');
+      const badgeName = $('ai-match-name');
+      const targetBox = $('target-box-element');
+
+      if (confText) confText.textContent = `Match: ${highestScore}%`;
+
+      if (highestScore >= 72 && bestMatch) {
+        if (statusText) statusText.textContent = `Wajah cocok: ${bestMatch.nama} (${bestMatch.kelas})`;
+        if (badgeName) badgeName.textContent = bestMatch.nama;
+        if (badge) badge.classList.remove('hidden');
+        if (targetBox) {
+          targetBox.style.borderColor = '#10b981';
+          targetBox.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.6)';
+        }
+
+        const now = Date.now();
+        if (highestScore >= 78 && (now - lastAutoAbsenTime > 4000)) {
+          lastAutoAbsenTime = now;
+          const today = todayISO();
+          const rec = (window.absensiData || []).find(a => String(a.siswaId) === String(bestMatch.id) && String(a.tanggal).slice(0, 10) === today);
+          const jenis = (!rec || rec.jamDatang === '-' || !rec.jamDatang) ? 'Datang' : 'Pulang';
+
+          // Putar suara & narasi berdasarkan jenis absen (AI)
+          if (jenis === 'Datang') {
+              if (typeof playDatangSound === 'function') playDatangSound(bestMatch.nama);
+          } else {
+              if (typeof playPulangSound === 'function') playPulangSound(bestMatch.nama);
+          }
+          
+          showToast(`AI Mengenali ${bestMatch.nama} (${highestScore}% match). Absen ${jenis} dicatat!`);
+
+          const payload = {
+            type: 'absensi',
+            id: rec?.id || ('ABS-' + Date.now()),
+            siswaId: bestMatch.id,
+            nama: bestMatch.nama,
+            kelas: bestMatch.kelas,
+            tanggal: today,
+            jamDatang: jenis === 'Datang' ? timeNow() : (rec?.jamDatang || '-'),
+            jamPulang: jenis === 'Pulang' ? timeNow() : (rec?.jamPulang || '-'),
+            status: rec?.status || 'Hadir'
+          };
+          
+          try {
+            sendToSheet(payload);
+          } catch(e) {}
+        }
+      } else {
+        if (statusText) statusText.textContent = highestScore > 40 ? 'Menganalisis kemiripan wajah...' : 'Mengarahkan kamera ke wajah...';
+        if (badge) badge.classList.add('hidden');
+        if (targetBox) {
+          targetBox.style.borderColor = '#60a5fa';
+          targetBox.style.boxShadow = '0 0 0 9999px rgba(0, 0, 0, 0.45)';
+        }
+      }
+    }, 450);
+  }
+
+  function stopAIRecognitionLoop() {
+    if (aiRecognitionInterval) {
+      clearInterval(aiRecognitionInterval);
+      aiRecognitionInterval = null;
+    }
+  }
+
+  // Safe JSONP script loader without external cross-origin dependencies
+  async function loadSheetDataJSONP(url) {
+    return new Promise((resolve, reject) => {
+      const callbackName = '__sheetCb_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+      const script = document.createElement('script');
+      let finished = false;
+      
+      const cleanup = () => {
+        try {
+          if (script.parentNode) script.parentNode.removeChild(script);
+        } catch (_) {}
+        try { window[callbackName] = function(){}; delete window[callbackName]; } catch (_) {}
+      };
+      
+      const timer = setTimeout(() => {
+        if (finished) return;
+        finished = true;
+        cleanup();
+        reject(new Error('Koneksi Google Sheets tidak merespons (Timeout). Pastikan Web App Apps Script di-deploy dengan akses "Anyone".'));
+      }, 7000);
+
+      window[callbackName] = data => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        cleanup();
+        if (!data || data.status !== 'success') reject(new Error(data?.message || 'Respons Google Sheets tidak valid'));
+        else resolve(data);
+      };
+
+      script.onerror = function(err) {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        cleanup();
+        reject(new Error('Gagal mengontak URL Web App Google Apps Script. Periksa kembali URL /exec Anda.'));
+      };
+
+      try {
+        script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + encodeURIComponent(callbackName) + '&_=' + Date.now();
+        document.head.appendChild(script);
+      } catch (err) {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        cleanup();
+        reject(err);
+      }
+    });
+  }
+
+  async function sendToSheet(payload){
+    const url=getSheetUrl();
+    if(!url){showToast('Isi URL Google Apps Script Web App terlebih dahulu.');throw new Error('URL Web App belum diisi');}
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url)){showToast('URL harus berupa URL Web App Google Apps Script yang berakhir /exec.');throw new Error('URL Web App tidak valid');}
+    try{ localStorage.setItem('saved_sheet_url',url); }catch(e){}
+    
+    try {
+      await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    } catch(err) {
+      console.warn('POST Request sending attempt finished with notice', err);
+    }
+    await new Promise(resolve=>setTimeout(resolve,700));
+    const ok = await pullDataFromSpreadsheet(true);
+    if(!ok) console.warn('Data dikirim, namun sync balasan spreadsheet belum terhubung.');
+    return true;
+  }
+
+  window.pullDataFromSpreadsheet = async function(silent=false){
+    const url=getSheetUrl();
+    if(!url || !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url)){
+      if(!silent) showToast('Masukkan URL Web App Google Apps Script yang sah (berakhiran /exec).');
+      return false;
+    }
+    try{ localStorage.setItem('saved_sheet_url',url); }catch(e){}
+    try{
+      const data=await loadSheetDataJSONP(url);
+      window.siswaData=Array.isArray(data.siswaData)?data.siswaData:[];
+      window.absensiData=Array.isArray(data.absensiData)?data.absensiData:[];
+      refreshViews();
+      if(!silent) showToast(`Sinkron berhasil: ${window.siswaData.length} siswa, ${window.absensiData.length} catatan absensi.`);
+      return true;
+    }catch(err){
+      if(!silent) showToast(err.message || 'Gagal menarik data dari Google Sheets.');
+      return false;
+    }
+  };
+
+  window.simpanSiswa=async function(){
+    const nama=$('reg-nama')?.value.trim(), kelas=$('reg-kelas')?.value.trim();
+    if(!nama||!kelas){
+      showToast('Nama siswa dan kelas wajib diisi.');
+      if (typeof speakText === 'function') speakText('Mohon isi nama siswa dan kelas terlebih dahulu');
+      return;
+    }
+    if(!fotoReg){
+      showToast('Ambil foto sampel wajah siswa terlebih dahulu.');
+      if (typeof speakText === 'function') speakText('Silakan ambil foto wajah siswa');
+      return;
+    }
+    const existing=(window.siswaData||[]).find(s=>String(s.nama).toLowerCase()===nama.toLowerCase()&&String(s.kelas).toLowerCase()===kelas.toLowerCase());
+    const data={type:'siswa',id:existing?.id||('SIS-'+Date.now()),nama,kelas,fotoWajah:fotoReg,createdAt:new Date().toISOString()};
+    try{
+      await sendToSheet(data);
+      if($('reg-nama'))$('reg-nama').value='';
+      if($('reg-kelas'))$('reg-kelas').value='';
+      fotoReg='';
+      if($('canvas-preview-reg'))$('canvas-preview-reg').classList.add('hidden');
+      showToast('Data siswa & foto sampel berhasil disimpan.');
+      if (typeof playRegSound === 'function') playRegSound(nama); // Putar suara pendaftaran
+    }catch(e){console.error(e);}
+  };
+
+  window.prosesAbsensi=async function(jenis){
+    const id=$('select-absen-siswa')?.value;
+    if(!id){
+      showToast('Pilih siswa terlebih dahulu pada mode Manual.');
+      if (typeof speakText === 'function') speakText('Pilih nama siswa terlebih dahulu');
+      return;
+    }
+    const s=(window.siswaData||[]).find(x=>String(x.id)===String(id));
+    if(!s){
+      showToast('Data siswa tidak ditemukan. Sinkronkan spreadsheet.');
+      return;
+    }
+    const tanggal=todayISO(); let rec=(window.absensiData||[]).find(a=>String(a.siswaId)===String(s.id)&&String(a.tanggal).slice(0,10)===tanggal);
+    const payload={type:'absensi',id:rec?.id||('ABS-'+Date.now()),siswaId:s.id,nama:s.nama,kelas:s.kelas,tanggal,jamDatang:jenis==='Datang'?timeNow():(rec?.jamDatang||'-'),jamPulang:jenis==='Pulang'?timeNow():(rec?.jamPulang||'-'),status:rec?.status||'Hadir'};
+    
+    // Putar suara berdasarkan jenis (Manual)
+    if (jenis === 'Datang') {
+        if (typeof playDatangSound === 'function') playDatangSound(s.nama);
+    } else {
+        if (typeof playPulangSound === 'function') playPulangSound(s.nama);
+    }
+
+    try{await sendToSheet(payload);showToast(`Absensi ${jenis.toLowerCase()} ${s.nama} dikirim ke Google Sheets.`);}catch(e){console.error(e);}
+  };
+
+  window.renderSiswaList=function(){
+    const el=$('siswa-list');if(!el)return;const filter=$('filter-kelas-siswa')?.value||'';const list=(window.siswaData||[]).filter(s=>!filter||s.kelas===filter);
+    if($('badge-count'))$('badge-count').textContent=String((window.siswaData||[]).length);
+    el.innerHTML=list.length?list.map(s=>`<div class="flex items-center gap-3 bg-darkbg border border-bordercolor rounded-xl p-3"><div class="w-10 h-10 rounded-lg bg-slate-700 overflow-hidden flex items-center justify-center">${s.fotoWajah?`<img src="${escapeHtml(s.fotoWajah)}" class="w-full h-full object-cover" alt="Foto">`:'<span>👤</span>'}</div><div class="min-w-0 flex-1"><div class="text-xs font-semibold text-white">${escapeHtml(s.nama)}</div><div class="text-[11px] text-subtext">${escapeHtml(s.kelas)} · ${escapeHtml(s.id)}</div></div><button onclick="bukaEditSiswa('${escapeHtml(s.id)}')" class="text-blue-400 text-xs font-semibold hover:underline">Edit</button></div>`).join(''):'<p class="text-xs text-subtext text-center py-4">Belum ada siswa. Tambahkan siswa atau tarik data dari Google Sheets.</p>';
+  };
+
+  window.populateSelectSiswaAbsen=function(){const el=$('select-absen-siswa');if(!el)return;const cls=$('select-absen-kelas')?.value||'';const old=el.value;const list=(window.siswaData||[]).filter(s=>!cls||s.kelas===cls);el.innerHTML='<option value="">-- Pilih Nama Siswa --</option>'+list.map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.nama)} — ${escapeHtml(s.kelas)}</option>`).join('');if(list.some(s=>String(s.id)===old))el.value=old;};
+  
+  window.switchAbsenMode=function(mode){
+    const ai=$('absen-box-ai'),manual=$('absen-box-manual');
+    const btnAi=$('btn-mode-ai'), btnManual=$('btn-mode-manual');
+    if(ai)ai.classList.toggle('hidden',mode!=='ai');
+    if(manual)manual.classList.toggle('hidden',mode!=='manual');
+
+    if (btnAi && btnManual) {
+      if (mode === 'ai') {
+        btnAi.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-accentblue text-white transition flex items-center gap-1";
+        btnManual.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-subtext hover:text-white transition flex items-center gap-1";
+      } else {
+        btnManual.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-accentblue text-white transition flex items-center gap-1";
+        btnAi.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-subtext hover:text-white transition flex items-center gap-1";
+        stopAIRecognitionLoop();
+      }
+    }
+  };
+  
+  window.renderTodayStatusTable=function(){
+    const tbody=$('today-status-tbody');if(!tbody)return;const cls=$('filter-today-kelas')?.value||'',today=todayISO();const list=(window.siswaData||[]).filter(s=>!cls||s.kelas===cls);
+    let counts={Datang:0,Sakit:0,Izin:0,Alpa:0};
+    tbody.innerHTML=list.map((s,i)=>{
+      const a=(window.absensiData||[]).find(x=>String(x.siswaId)===String(s.id)&&String(x.tanggal).slice(0,10)===today);
+      const st=a?.status||'Alpa';
+      if(st.includes('Datang')||st==='Hadir')counts.Datang++;else if(st==='Sakit')counts.Sakit++;else if(st==='Izin')counts.Izin++;else counts.Alpa++;
+      return `<tr><td class="p-2 text-center">${i+1}</td><td class="p-2 font-medium">${escapeHtml(s.nama)}</td><td class="p-2">${escapeHtml(s.kelas)}</td><td class="p-2 text-center">${a?'🟢':'🔴'}</td><td class="p-2 text-center font-mono text-emerald-400">${escapeHtml(a?.jamDatang||'-')}</td><td class="p-2 text-center font-mono text-rose-400">${escapeHtml(a?.jamPulang||'-')}</td><td class="p-2 text-center"><select class="bg-cardbg border border-bordercolor rounded px-2 py-1 text-xs text-white" onchange="ubahStatusAbsensi('${escapeHtml(s.id)}',this.value)"><option value="Alpa" ${st==='Alpa'?'selected':''}>Alpa</option><option value="Hadir" ${st==='Hadir'?'selected':''}>Hadir</option><option value="Sakit" ${st==='Sakit'?'selected':''}>Sakit</option><option value="Izin" ${st==='Izin'?'selected':''}>Izin</option></select></td></tr>`;
+    }).join('');
+    [['stat-total-datang',counts.Datang],['stat-total-sakit',counts.Sakit],['stat-total-izin',counts.Izin],['stat-total-alpa',counts.Alpa]].forEach(([id,v])=>{if($(id))$(id).textContent=v;});
+  };
+
+  window.ubahStatusAbsensi=async function(id,status){
+    const s=(window.siswaData||[]).find(x=>String(x.id)===String(id));if(!s)return;
+    const a=(window.absensiData||[]).find(x=>String(x.siswaId)===String(id)&&String(x.tanggal).slice(0,10)===todayISO());
+    try{
+      await sendToSheet({type:'absensi',id:a?.id||('ABS-'+Date.now()),siswaId:s.id,nama:s.nama,kelas:s.kelas,tanggal:todayISO(),jamDatang:a?.jamDatang||'-',jamPulang:a?.jamPulang||'-',status});
+      if (typeof speakText === 'function') speakText(`Status ${s.nama} diubah menjadi ${status}`);
+    }catch(e){console.error(e);}
+  };
+
+  window.renderRekapList=function(){
+    const el=$('rekap-container');if(!el)return;
+    const cls=$('filter-rekap-kelas')?.value||'',month=$('filter-rekap-bulan')?.value||todayISO().slice(0,7);
+    const list=(window.siswaData||[]).filter(s=>!cls||s.kelas===cls);
+    el.innerHTML=list.length?list.map(s=>{
+      const logs=(window.absensiData||[]).filter(a=>String(a.siswaId)===String(s.id)&&String(a.tanggal).slice(0,7)===month);
+      const count=k=>logs.filter(a=>a.status===k).length;
+      return `<div class="bg-darkbg border border-bordercolor rounded-xl p-3 flex justify-between gap-3 items-center"><div><div class="text-xs font-semibold text-white">${escapeHtml(s.nama)}</div><div class="text-[11px] text-subtext">${escapeHtml(s.kelas)}</div></div><div class="text-[11px] text-right text-subtext">Hadir: <b class="text-emerald-400">${logs.filter(a=>['Hadir','Datang'].includes(a.status)).length}</b> · Sakit: <b class="text-amber-400">${count('Sakit')}</b> · Izin: <b class="text-blue-400">${count('Izin')}</b> · Alpa: <b class="text-rose-400">${count('Alpa')}</b></div></div>`;
+    }).join(''):'<p class="text-xs text-subtext text-center py-4">Belum ada data siswa untuk rekap.</p>';
+  };
+
+  window.backupJSON=function(){
+    const blob=new Blob([JSON.stringify({siswaData:window.siswaData||[],absensiData:window.absensiData||[]},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup_absensi_fajar_indah.json';a.click();URL.revokeObjectURL(a.href);
+  };
+
+  window.restoreJSON=function(e){
+    const file=e.target.files?.[0];if(!file)return;
+    const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);for(const s of d.siswaData||[])await sendToSheet({type:'siswa',...s});for(const a of d.absensiData||[])await sendToSheet({type:'absensi',...a});showToast('Proses restore selesai.');}catch(err){showToast('File JSON tidak valid atau gagal dikirim.');}};r.readAsText(file);
+  };
+
+  window.bukaEditSiswa=function(id){
+    const s=(window.siswaData||[]).find(x=>String(x.id)===String(id));if(!s)return;
+    $('edit-siswa-id').value=s.id;
+    $('edit-nama').value=s.nama||'';
+    $('edit-kelas').value=s.kelas||'';
+    fotoEdit=s.fotoWajah||'';
+    if($('edit-foto-preview'))$('edit-foto-preview').src=fotoEdit||'';
+    $('modal-edit-siswa')?.classList.remove('hidden');
+  };
+
+  window.closeEditModal=function(){$('modal-edit-siswa')?.classList.add('hidden');};
+
+  window.simpanEditSiswa=async function(){
+    const id=$('edit-siswa-id')?.value;
+    try{await sendToSheet({type:'siswa',id,nama:$('edit-nama').value.trim(),kelas:$('edit-kelas').value.trim(),fotoWajah:fotoEdit,createdAt:new Date().toISOString()});closeEditModal();}catch(e){console.error(e);}
+  };
+
+  window.toggleWebcam=async function(which){
+    const id=which==='reg'?'webcam-reg':'webcam-absen';
+    const video=$(id);
+
+    if (which === 'absen' && activeStreamAbsen) {
+      activeStreamAbsen.getTracks().forEach(t => t.stop());
+      activeStreamAbsen = null;
+      video.classList.add('hidden');
+      $('camera-placeholder-absen')?.classList.remove('hidden');
+      $('scanner-wrapper')?.classList.add('hidden');
+      if ($('btn-cam-text-absen')) $('btn-cam-text-absen').textContent = "Nyalakan Pemindai Wajah";
+      stopAIRecognitionLoop();
+      return;
+    }
+
+    try{
+      if(!navigator.mediaDevices?.getUserMedia)throw new Error('Browser tidak mendukung kamera');
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      video.srcObject=stream;video.classList.remove('hidden');
+      if(which==='reg'){
+        activeStreamReg=stream;$('camera-placeholder-reg')?.classList.add('hidden');$('btn-capture-reg')?.classList.remove('hidden');
+      }else{
+        activeStreamAbsen=stream;
+        $('camera-placeholder-absen')?.classList.add('hidden');
+        $('scanner-wrapper')?.classList.remove('hidden');
+        if ($('btn-cam-text-absen')) $('btn-cam-text-absen').textContent = "Matikan Pemindai Wajah";
+        await cacheAllStudentFaceDescriptors();
+        startAIRecognitionLoop();
+      }
+      await video.play();
+    }catch(e){showToast('Kamera tidak dapat dibuka. Izinkan akses kamera.');}
+  };
+
+  window.captureFotoReg=function(){
+    const v=$('webcam-reg'),c=$('canvas-preview-reg');
+    if(!v||!v.videoWidth){showToast('Nyalakan kamera terlebih dahulu.');return;}
+    const maxW=480, scale=Math.min(1,maxW/v.videoWidth), w=Math.round(v.videoWidth*scale), h=Math.round(v.videoHeight*scale);
+    c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);
+    let q=0.68; fotoReg=c.toDataURL('image/jpeg',q);
+    while(fotoReg.length>45000&&q>0.38){q-=0.08;fotoReg=c.toDataURL('image/jpeg',q);}
+    if(fotoReg.length>49000){showToast('Foto masih terlalu besar. Dekatkan wajah ke kamera dan ambil ulang.');fotoReg='';return;}
+    c.classList.remove('hidden');if(activeStreamReg)activeStreamReg.getTracks().forEach(t=>t.stop());v.classList.add('hidden');showToast('Foto wajah berhasil diambil.');
+    if (typeof playBeep === 'function') playBeep(600, 900);
+  };
+
+  window.toggleWebcamEdit=async function(){
+    const v=$('webcam-edit');
+    try{activeStreamEdit=await navigator.mediaDevices.getUserMedia({video:true,audio:false});v.srcObject=activeStreamEdit;v.classList.remove('hidden');$('btn-capture-edit')?.classList.remove('hidden');}catch(e){showToast('Tidak dapat mengakses kamera.');}
+  };
+
+  window.captureEditFoto=function(){
+    const v=$('webcam-edit');if(!v?.videoWidth)return;
+    const scale=Math.min(1,480/v.videoWidth), c=document.createElement('canvas');c.width=Math.round(v.videoWidth*scale);c.height=Math.round(v.videoHeight*scale);
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height);let q=0.68;fotoEdit=c.toDataURL('image/jpeg',q);
+    while(fotoEdit.length>45000&&q>0.38){q-=0.08;fotoEdit=c.toDataURL('image/jpeg',q);}
+    if(fotoEdit.length>49000){showToast('Foto terlalu besar. Ambil ulang.');return;}
+    $('edit-foto-preview').src=fotoEdit;v.classList.add('hidden');if(activeStreamEdit)activeStreamEdit.getTracks().forEach(t=>t.stop());showToast('Foto siswa diperbarui.');
+    if (typeof playBeep === 'function') playBeep(600, 900);
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(()=>{
+      updateClassFilters();
+      refreshViews();
+      try{
+        const url=localStorage.getItem('saved_sheet_url');
+        if(url&&$('google-sheet-url'))$('google-sheet-url').value=url;
+      }catch(e){}
+    },100);
+  });
+})();
+</script>
+
+<script>
+// LOGIN HANDLER IMPLEMENTATION
+(function () {
+  function showLoginMessage(message) {
+    var el = document.getElementById('login-error');
+    if (el) el.textContent = message || '';
+  }
+
+  window.handleLogin = function (event) {
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    var userEl = document.getElementById('login-username');
+    var passEl = document.getElementById('login-password');
+    var user = userEl ? String(userEl.value || '').trim().toLowerCase() : '';
+    var pass = passEl ? String(passEl.value || '') : '';
+    
+    showLoginMessage('Memeriksa login...');
+    if (user === 'admin' && pass === 'demikamu') {
+      try { localStorage.setItem('isLoggedIn', 'true'); } catch (e) {}
+      try { sessionStorage.setItem('isLoggedIn', 'true'); } catch (e) {}
+      showLoginMessage('');
+      
+      var login = document.getElementById('login-screen');
+      var header = document.getElementById('app-header');
+      var nav = document.getElementById('main-tab-nav');
+      if (login) login.classList.add('hidden');
+      if (header) header.classList.remove('hidden');
+      if (nav) nav.classList.remove('hidden');
+      
+      document.querySelectorAll('.tab-content').forEach(function (el) { el.classList.add('hidden'); });
+      var absensi = document.getElementById('menu-absensi');
+      var btn = document.getElementById('tab-btn-absensi');
+      if (absensi) absensi.classList.remove('hidden');
+      if (btn) { btn.classList.add('bg-accentblue','text-white'); btn.classList.remove('text-subtext'); }
+      
+      if (typeof window.refreshViews === 'function') { try { window.refreshViews(); } catch (e) {} }
+      if (typeof window.showToast === 'function') { try { window.showToast('Berhasil masuk ke sistem!'); } catch (e) {} }
+      if (typeof window.speakText === 'function') { try { window.speakText('Selamat datang di sistem absensi SMK Fajar Indah'); } catch (e) {} }
+      return false;
+    }
+    showLoginMessage('Login gagal. Username: admin, Password: demikamu (huruf kecil).');
+    if (typeof window.speakText === 'function') { try { window.speakText('Login gagal. Periksa username dan password.'); } catch (e) {} }
+    return false;
+  };
+
+  function wireLogin() {
+    var form = document.getElementById('login-form');
+    var button = form ? form.querySelector('button[type=submit]') : null;
+    if (form && !form.dataset.loginWired) {
+      form.dataset.loginWired = 'true';
+      form.addEventListener('submit', window.handleLogin);
+    }
+    if (button && !button.dataset.loginWired) {
+      button.dataset.loginWired = 'true';
+      button.addEventListener('click', function (event) { window.handleLogin(event); });
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireLogin);
+  else wireLogin();
+})();
+</script>
+
+</body>
+</html>

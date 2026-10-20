@@ -1,0 +1,11 @@
+{
+  "name": "Sistem Absensi SMK FAJAR INDAH",
+  "description": "Sistem absensi pemindaian wajah AI SMK Fajar Indah dengan kalibrasi cermin kamera alami, pengenalan wajah cerdas, dan sinkronisasi Google Sheets.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

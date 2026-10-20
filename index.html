@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistem Absensi SMK FAJAR INDAH</title>
+    <meta name="description" content="Sistem absensi pemindaian wajah AI SMK Fajar Indah dengan kalibrasi cermin kamera alami, pengenalan wajah cerdas, dan sinkronisasi Google Sheets." />
+    <meta property="og:title" content="Sistem Absensi SMK FAJAR INDAH" />
+    <meta property="og:description" content="Sistem absensi pemindaian wajah AI SMK Fajar Indah dengan kalibrasi cermin kamera alami, pengenalan wajah cerdas, dan sinkronisasi Google Sheets." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Suppress cross-origin iframe / CDN Script errors from propagating
+      window.addEventListener('error', function(e) {
+        if (!e || e.message === 'Script error.' || e.message === 'Script error' || !e.message) {
+          if (typeof e.preventDefault === 'function') e.preventDefault();
+          if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+          return true;
+        }
+      }, true);
+      window.onerror = function(msg) {
+        if (msg === 'Script error.' || msg === 'Script error' || !msg) {
+          return true;
+        }
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e && e.reason && (e.reason.message === 'Script error.' || String(e.reason).includes('Script error'))) {
+          if (typeof e.preventDefault === 'function') e.preventDefault();
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
